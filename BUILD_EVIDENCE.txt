@@ -1,0 +1,132 @@
+==========================================
+Build evidence — Bookmark Manager API
+==========================================
+
+Reflection (3-5 sentences)
+
+The Build-Verify-Commit cycle caught two real problems early. First, in
+Chunk 2 the repository unit tests failed because three create() calls
+landed inside the same ISO millisecond, so the sort order was decided by
+UUID tiebreaker — adding a monotonic insertion counter fixed it before any
+list endpoint could become flaky in production. Second, in Chunk 3 the
+tsc --noEmit step rejected my first Request augmentation (the
+`import "express-serve-static-core"` form), which had silently broken the
+overloads of express.json(); the typecheck step caught it before any
+runtime would have. I was most tempted to skip verification on the
+mechanical endpoints (GET-by-id and DELETE), but writing the second
+"edge case" test anyway took thirty seconds and produced the double-delete
+test that proves deletion is not silently idempotent — exactly the kind of
+detail that rots into a bug if no test pins it down.
+
+==========================================
+git log --stat --oneline
+==========================================
+
+17d88b9 chore: production-checklist review pass — add start-log + graceful shutdown
+ PLANNING.md  | 21 ++++++++++++++++++---
+ src/app.ts   |  5 +++++
+ src/index.ts | 20 +++++++++++++++++++-
+ 3 files changed, 42 insertions(+), 4 deletions(-)
+2092438 feat(api): GET /health endpoint + .env.example documenting configuration
+ .env.example       | 15 +++++++++++++++
+ src/app.test.ts    | 19 +++++++++++++++++++
+ src/app.ts         |  4 ++++
+ src/config.test.ts | 27 +++++++++++++++++++++++++++
+ 4 files changed, 65 insertions(+)
+b04ba82 feat(api): DELETE /bookmarks/:id with 204 success and 404 on miss
+ src/bookmarks/router.test.ts | 33 +++++++++++++++++++++++++++++++++
+ src/bookmarks/router.ts      | 13 +++++++++++++
+ 2 files changed, 46 insertions(+)
+55e21de feat(api): PUT /bookmarks/:id with partial update and validation
+ src/bookmarks/router.test.ts | 55 ++++++++++++++++++++++++++++++++++++++++++++
+ src/bookmarks/router.ts      | 16 ++++++++++++-
+ 2 files changed, 70 insertions(+), 1 deletion(-)
+6d6b539 feat(api): GET /bookmarks/:id with structured 404
+ src/bookmarks/router.test.ts | 24 ++++++++++++++++++++++++
+ src/bookmarks/router.ts      | 13 +++++++++++++
+ 2 files changed, 37 insertions(+)
+7c4efce feat(api): GET /bookmarks with optional ?tag= filter
+ src/bookmarks/router.test.ts | 50 ++++++++++++++++++++++++++++++++++++++++++++
+ src/bookmarks/router.ts      | 12 ++++++++++-
+ 2 files changed, 61 insertions(+), 1 deletion(-)
+b7752ce feat(api): POST /bookmarks with Zod validation and structured errors
+ src/app.ts                     | 15 ++++++++-
+ src/bookmarks/router.test.ts   | 75 ++++++++++++++++++++++++++++++++++++++++++
+ src/bookmarks/router.ts        | 20 +++++++++++
+ src/bookmarks/schemas.ts       | 69 ++++++++++++++++++++++++++++++++++++++
+ src/errors.ts                  | 21 ++++++++++++
+ src/express.d.ts               | 12 +++++++
+ src/middleware/errorHandler.ts | 75 ++++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 286 insertions(+), 1 deletion(-)
+f89f7d7 feat(data): in-memory bookmark repository with deterministic ordering
+ src/bookmarks/repository.test.ts | 58 ++++++++++++++++++++++++
+ src/bookmarks/repository.ts      | 97 ++++++++++++++++++++++++++++++++++++++++
+ src/bookmarks/types.ts           | 23 ++++++++++
+ 3 files changed, 178 insertions(+)
+dcf2066 chore: scaffold TypeScript + Express project with structured logging
+ .gitignore        |    7 +
+ PLANNING.md       |   39 +
+ README.md         |   27 +
+ jest.config.js    |    8 +
+ jest.setup.js     |    2 +
+ package-lock.json | 5395 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ package.json      |   34 +
+ src/app.ts        |   27 +
+ src/config.ts     |   19 +
+ src/index.ts      |   14 +
+ src/logger.ts     |   10 +
+ tsconfig.json     |   24 +
+ 12 files changed, 5606 insertions(+)
+
+==========================================
+npm test (verbose) — happy + edge case per endpoint
+==========================================
+
+PASS src/app.test.ts
+  GET /health
+    ✓ returns 200 with {status:'ok'} (12 ms)
+  unknown route
+    ✓ returns 404 in the same structured-error shape (2 ms)
+
+PASS src/bookmarks/router.test.ts
+  POST /bookmarks
+    ✓ creates a bookmark and returns 201 with the persisted resource (7 ms)
+    ✓ returns 400 with structured error when the URL is malformed (2 ms)
+    ✓ returns 400 when the title is an empty string (2 ms)
+    ✓ returns 400 on malformed JSON instead of crashing (2 ms)
+  GET /bookmarks
+    ✓ returns an empty list when nothing has been created (1 ms)
+    ✓ lists newest first and filters by tag (happy path) (3 ms)
+    ✓ returns an empty list when the tag filter matches nothing (edge case) (1 ms)
+    ✓ returns 400 when an unknown query param is supplied (2 ms)
+  GET /bookmarks/:id
+    ✓ returns the bookmark when it exists (happy path) (1 ms)
+    ✓ returns 404 with a structured body when the id is unknown (edge case) (1 ms)
+  PUT /bookmarks/:id
+    ✓ partially updates a bookmark and returns it (happy path) (1 ms)
+    ✓ returns 400 when the URL in the update is malformed (error case) (2 ms)
+    ✓ returns 400 when the update body is empty (1 ms)
+    ✓ returns 404 when the bookmark does not exist (1 ms)
+  DELETE /bookmarks/:id
+    ✓ removes a bookmark and returns 204 (happy path) (1 ms)
+    ✓ returns 404 when deleting an unknown id (edge case) (1 ms)
+    ✓ the same id cannot be deleted twice (2 ms)
+
+PASS src/bookmarks/repository.test.ts
+  in-memory bookmark repository
+    ✓ round-trips a bookmark on create + get
+    ✓ lists newest first and filters by tag (1 ms)
+    ✓ updates partial fields and bumps updatedAt (11 ms)
+    ✓ deletes and reports whether it existed
+
+PASS src/config.test.ts
+  loadConfig
+    ✓ uses safe defaults when env is empty
+    ✓ respects PORT and LOG_LEVEL from env
+    ✓ throws on an invalid LOG_LEVEL (2 ms)
+
+Test Suites: 4 passed, 4 total
+Tests:       26 passed, 26 total
+Snapshots:   0 total
+Time:        0.689 s, estimated 1 s
+Ran all test suites.

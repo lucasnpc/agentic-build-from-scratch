@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { CreateBookmarkSchema } from "./schemas";
+import { CreateBookmarkSchema, ListQuerySchema } from "./schemas";
 import type { BookmarkRepository } from "./repository";
 
 export function createBookmarkRouter(repo: BookmarkRepository): Router {
@@ -11,6 +11,16 @@ export function createBookmarkRouter(repo: BookmarkRepository): Router {
       const bookmark = repo.create(payload);
       req.log?.info({ bookmarkId: bookmark.id }, "bookmark created");
       res.status(201).json(bookmark);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.get("/", (req, res, next) => {
+    try {
+      const query = ListQuerySchema.parse(req.query);
+      const items = repo.list({ tag: query.tag });
+      res.status(200).json({ items, count: items.length });
     } catch (err) {
       next(err);
     }

@@ -73,3 +73,53 @@ describe("POST /bookmarks", () => {
     expect(res.body.error.code).toBe("malformed_json");
   });
 });
+
+describe("GET /bookmarks", () => {
+  it("returns an empty list when nothing has been created", async () => {
+    const { app } = buildApp();
+    const res = await request(app).get("/bookmarks");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ items: [], count: 0 });
+  });
+
+  it("lists newest first and filters by tag (happy path)", async () => {
+    const { app, repository } = buildApp();
+    repository.create({ url: "https://a.test", title: "A", tags: ["news"] });
+    repository.create({ url: "https://b.test", title: "B", tags: ["tech"] });
+    repository.create({ url: "https://c.test", title: "C", tags: ["news", "tech"] });
+
+    const all = await request(app).get("/bookmarks");
+    expect(all.status).toBe(200);
+    expect(all.body.count).toBe(3);
+    expect(all.body.items.map((b: { title: string }) => b.title)).toEqual([
+      "C",
+      "B",
+      "A",
+    ]);
+
+    const filtered = await request(app).get("/bookmarks?tag=news");
+    expect(filtered.status).toBe(200);
+    expect(filtered.body.count).toBe(2);
+    expect(filtered.body.items.map((b: { title: string }) => b.title)).toEqual([
+      "C",
+      "A",
+    ]);
+  });
+
+  it("returns an empty list when the tag filter matches nothing (edge case)", async () => {
+    const { app, repository } = buildApp();
+    repository.create({ url: "https://a.test", title: "A", tags: ["news"] });
+
+    const res = await request(app).get("/bookmarks?tag=nope");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ items: [], count: 0 });
+  });
+
+  it("returns 400 when an unknown query param is supplied", async () => {
+    const { app } = buildApp();
+    const res = await request(app).get("/bookmarks?weird=1");
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("validation_error");
+  });
+});

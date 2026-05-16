@@ -123,3 +123,27 @@ describe("GET /bookmarks", () => {
     expect(res.body.error.code).toBe("validation_error");
   });
 });
+
+describe("GET /bookmarks/:id", () => {
+  it("returns the bookmark when it exists (happy path)", async () => {
+    const { app, repository } = buildApp();
+    const created = repository.create({
+      url: "https://example.com",
+      title: "Example",
+    });
+
+    const res = await request(app).get(`/bookmarks/${created.id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(created.id);
+    expect(res.body.title).toBe("Example");
+  });
+
+  it("returns 404 with a structured body when the id is unknown (edge case)", async () => {
+    const { app } = buildApp();
+    const res = await request(app).get("/bookmarks/does-not-exist");
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe("not_found");
+    expect(res.body.error.message).toMatch(/does-not-exist/);
+    expect(res.body.error.requestId).toBeDefined();
+  });
+});

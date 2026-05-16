@@ -31,6 +31,10 @@ export function createApp(deps: AppDeps = {}): Application {
     })
   );
 
+  app.get("/health", (_req, res) => {
+    res.status(200).json({ status: "ok" });
+  });
+
   app.use("/bookmarks", createBookmarkRouter(repository));
 
   app.use(notFoundHandler);

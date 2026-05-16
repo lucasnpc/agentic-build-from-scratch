@@ -147,3 +147,58 @@ describe("GET /bookmarks/:id", () => {
     expect(res.body.error.requestId).toBeDefined();
   });
 });
+
+describe("PUT /bookmarks/:id", () => {
+  it("partially updates a bookmark and returns it (happy path)", async () => {
+    const { app, repository } = buildApp();
+    const created = repository.create({
+      url: "https://example.com",
+      title: "Original",
+      tags: ["news"],
+    });
+
+    const res = await request(app)
+      .put(`/bookmarks/${created.id}`)
+      .send({ title: "Renamed", tags: ["Tech", "tech"] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.title).toBe("Renamed");
+    expect(res.body.url).toBe(created.url); // untouched
+    expect(res.body.tags).toEqual(["tech"]);
+    expect(res.body.updatedAt >= created.updatedAt).toBe(true);
+  });
+
+  it("returns 400 when the URL in the update is malformed (error case)", async () => {
+    const { app, repository } = buildApp();
+    const created = repository.create({
+      url: "https://example.com",
+      title: "Original",
+    });
+
+    const res = await request(app)
+      .put(`/bookmarks/${created.id}`)
+      .send({ url: "not-a-url" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("validation_error");
+    const stored = repository.get(created.id);
+    expect(stored!.url).toBe("https://example.com");
+  });
+
+  it("returns 400 when the update body is empty", async () => {
+    const { app, repository } = buildApp();
+    const created = repository.create({ url: "https://example.com", title: "x" });
+    const res = await request(app).put(`/bookmarks/${created.id}`).send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("validation_error");
+  });
+
+  it("returns 404 when the bookmark does not exist", async () => {
+    const { app } = buildApp();
+    const res = await request(app)
+      .put("/bookmarks/does-not-exist")
+      .send({ title: "x" });
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe("not_found");
+  });
+});

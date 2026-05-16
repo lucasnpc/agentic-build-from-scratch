@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { CreateBookmarkSchema, ListQuerySchema } from "./schemas";
+import { CreateBookmarkSchema, ListQuerySchema, UpdateBookmarkSchema } from "./schemas";
 import { HttpError } from "../errors";
 import type { BookmarkRepository } from "./repository";
 
@@ -34,6 +34,20 @@ export function createBookmarkRouter(repo: BookmarkRepository): Router {
         throw HttpError.notFound(`No bookmark with id ${req.params.id}`);
       }
       res.status(200).json(bookmark);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.put("/:id", (req, res, next) => {
+    try {
+      const patch = UpdateBookmarkSchema.parse(req.body);
+      const updated = repo.update(req.params.id, patch);
+      if (!updated) {
+        throw HttpError.notFound(`No bookmark with id ${req.params.id}`);
+      }
+      req.log?.info({ bookmarkId: updated.id }, "bookmark updated");
+      res.status(200).json(updated);
     } catch (err) {
       next(err);
     }

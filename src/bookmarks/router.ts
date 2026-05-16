@@ -53,5 +53,18 @@ export function createBookmarkRouter(repo: BookmarkRepository): Router {
     }
   });
 
+  router.delete("/:id", (req, res, next) => {
+    try {
+      const deleted = repo.delete(req.params.id);
+      if (!deleted) {
+        throw HttpError.notFound(`No bookmark with id ${req.params.id}`);
+      }
+      req.log?.info({ bookmarkId: req.params.id }, "bookmark deleted");
+      res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
+  });
+
   return router;
 }

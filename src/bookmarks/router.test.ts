@@ -202,3 +202,36 @@ describe("PUT /bookmarks/:id", () => {
     expect(res.body.error.code).toBe("not_found");
   });
 });
+
+describe("DELETE /bookmarks/:id", () => {
+  it("removes a bookmark and returns 204 (happy path)", async () => {
+    const { app, repository } = buildApp();
+    const created = repository.create({
+      url: "https://example.com",
+      title: "x",
+    });
+
+    const res = await request(app).delete(`/bookmarks/${created.id}`);
+    expect(res.status).toBe(204);
+    expect(res.body).toEqual({});
+    expect(repository.get(created.id)).toBeNull();
+  });
+
+  it("returns 404 when deleting an unknown id (edge case)", async () => {
+    const { app } = buildApp();
+    const res = await request(app).delete("/bookmarks/does-not-exist");
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe("not_found");
+  });
+
+  it("the same id cannot be deleted twice", async () => {
+    const { app, repository } = buildApp();
+    const created = repository.create({ url: "https://example.com", title: "x" });
+
+    const first = await request(app).delete(`/bookmarks/${created.id}`);
+    expect(first.status).toBe(204);
+
+    const second = await request(app).delete(`/bookmarks/${created.id}`);
+    expect(second.status).toBe(404);
+  });
+});

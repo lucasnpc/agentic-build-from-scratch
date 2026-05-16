@@ -31,6 +31,11 @@ export function createApp(deps: AppDeps = {}): Application {
     })
   );
 
+  app.use((req, _res, next) => {
+    req.log?.info({ method: req.method, path: req.path }, "request received");
+    next();
+  });
+
   app.get("/health", (_req, res) => {
     res.status(200).json({ status: "ok" });
   });

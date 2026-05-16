@@ -34,6 +34,21 @@ Picked from the Production Level Code lesson. These three, not "all of them" —
 2. **Structured error handling** — no `throw new Error('boom')` reaching the client. A central Express error middleware turns thrown errors into JSON with the correct HTTP status. 404 for unknown resources, 400 for validation, 500 only for genuinely unexpected failures (and the 500 body never leaks stack traces).
 3. **Structured logging** — `pino` with a child logger per request, carrying a request id. Every request gets one start log and one end log with status + duration. Errors are logged with the request id so I can correlate. `LOG_LEVEL` is env-driven; tests run at `silent`.
 
-## Reflection placeholder
+## Reflection (filled in after Chunk 9)
 
-I will fill this in at the end with one concrete moment when Build-Verify-Commit caught something, and one moment I was tempted to skip verification.
+Two concrete BVC catches stand out. In Chunk 2 the repository unit tests failed
+because three `create()` calls landed inside the same millisecond, so sorting by
+ISO `createdAt` fell back to UUID-tiebreaker chaos — adding an internal
+insertion counter fixed it. Without that test, the bug would only have surfaced
+later as a flaky list endpoint. In Chunk 3, `npx tsc --noEmit` flagged that my
+first attempt at augmenting Express's `Request` (the `import "express-serve-static-core"`
+style) silently broke the overloads for `express.json()`. Catching that at the
+typecheck step — before running tests, before booting the server — saved a much
+more confusing debugging trip later.
+
+I was most tempted to skip verification on the smaller endpoints (GET-by-id,
+DELETE) where the changes felt mechanical. I forced myself to run the test
+suite anyway and to write the second test (the edge case) before committing —
+the double-delete test in Chunk 7 only added thirty seconds and proved that
+deletion is not silently idempotent, which is the kind of detail that decays
+into a bug if no test pins it down.
